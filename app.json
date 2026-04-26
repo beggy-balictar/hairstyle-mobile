@@ -1,30 +1,51 @@
 {
   "expo": {
-    "name": "hairstyle-mobile-fe",
+    "name": "StyleHair",
     "slug": "hairstyle-mobile-fe",
+    "scheme": "stylehair",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#EEF1FF"
     },
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "com.stylehair.mobile",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#EEF1FF"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "apiBaseUrl": ""
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow StyleHair to access your camera for face scanning."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow StyleHair to access your photos for hairstyle analysis."
+        }
+      ]
+    ]
   }
 }
