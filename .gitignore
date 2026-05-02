@@ -7,6 +7,10 @@ node_modules/
 .expo/
 dist/
 web-build/
+.expo-export-test/
+
+# Local scratch / export output
+_bundle_out.txt
 expo-env.d.ts
 
 # Native
