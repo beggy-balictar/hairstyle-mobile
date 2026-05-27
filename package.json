@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "postinstall": "patch-package",
     "start": "expo start",
     "start:lan": "expo start --lan",
     "start:clear": "expo start --clear",
@@ -49,7 +48,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-view-shot": "^4.0.3",
     "react-native-vision-camera": "^5.0.9",
-    "react-native-vision-camera-face-detector": "^2.0.0",
+
     "react-native-web": "^0.21.0",
     "react-native-worklets-core": "^1.6.3"
   },

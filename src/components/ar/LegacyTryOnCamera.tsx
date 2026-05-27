@@ -3,10 +3,24 @@ import { StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
 import { CameraView } from 'expo-camera';
 import { useCameraDevice } from 'react-native-vision-camera';
-import {
-  Camera as VisionFaceCamera,
-  type Face,
-} from 'react-native-vision-camera-face-detector';
+// Lazy require so the native module is only accessed when the legacy engine is active
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const VisionFaceDetector: any = (() => {
+  try { return require('react-native-vision-camera-face-detector'); } catch { return null; }
+})();
+const VisionFaceCamera = VisionFaceDetector?.Camera ?? null;
+type Face = {
+  bounds?: { x: number; y: number; width: number; height: number } | null;
+  rollAngle?: number;
+  landmarks?: {
+    LEFT_EYE?: { x: number; y: number };
+    RIGHT_EYE?: { x: number; y: number };
+    NOSE_BASE?: { x: number; y: number };
+    MOUTH_BOTTOM?: { x: number; y: number };
+    LEFT_CHEEK?: { x: number; y: number };
+    RIGHT_CHEEK?: { x: number; y: number };
+  };
+};
 import { trackedFaceFromVision } from '../../ar/faceTracking';
 import type { TrackedFace } from '../../ar/faceTracking';
 
