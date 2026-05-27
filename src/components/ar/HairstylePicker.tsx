@@ -11,7 +11,6 @@ type Props = {
 export function HairstylePicker({ styles: catalog, selectedId, onSelect }: Props) {
   return (
     <View style={styles.panel}>
-      <Text style={styles.label}>Tap a style to try it live</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {catalog.map((item) => {
           const active = item.id === selectedId;
@@ -19,8 +18,13 @@ export function HairstylePicker({ styles: catalog, selectedId, onSelect }: Props
             <Pressable
               key={item.id}
               onPress={() => onSelect(item.id)}
-              style={[styles.chip, active && styles.chipActive]}
+              style={[styles.chip, active && styles.chipActive, item.recommended && styles.chipRecommended]}
             >
+              {item.recommended ? (
+                <View style={styles.recBadge}>
+                  <Text style={styles.recBadgeText}>For you</Text>
+                </View>
+              ) : null}
               {item.imageUri ? (
                 <Image source={{ uri: item.imageUri }} style={styles.thumb} resizeMode="cover" />
               ) : (
@@ -39,23 +43,15 @@ export function HairstylePicker({ styles: catalog, selectedId, onSelect }: Props
 
 const styles = StyleSheet.create({
   panel: {
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  label: {
-    color: colors.onPrimary,
-    fontWeight: '600',
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: 'transparent',
   },
   row: {
     paddingHorizontal: spacing.sm,
     gap: spacing.sm,
   },
   chip: {
+    position: 'relative',
     width: 88,
     alignItems: 'center',
     padding: 6,
@@ -67,6 +63,24 @@ const styles = StyleSheet.create({
   chipActive: {
     borderColor: colors.accent,
     backgroundColor: 'rgba(246,152,62,0.22)',
+  },
+  chipRecommended: {
+    borderColor: 'rgba(246,152,62,0.45)',
+  },
+  recBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    zIndex: 2,
+    backgroundColor: colors.accent,
+    borderRadius: radius.pill,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+  },
+  recBadgeText: {
+    color: colors.onAccent,
+    fontSize: 8,
+    fontWeight: '800',
   },
   thumb: {
     width: 64,

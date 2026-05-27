@@ -95,6 +95,8 @@ export default function TabsLayout() {
         options={{
           title: 'AR Try-On',
           tabBarLabel: 'Try-On',
+          headerShown: false,
+          tabBarStyle: { display: 'none' },
           tabBarIcon: ({ color }) => <Feather name="maximize" color={color} size={TAB_ICON_SIZE} />,
         }}
       />

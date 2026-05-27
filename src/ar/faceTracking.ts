@@ -54,12 +54,14 @@ export function trackedFaceFromVision(face: Face | undefined): TrackedFace {
     }
   }
 
-  return {
-    bounds: face.bounds,
-    rollAngle: face.rollAngle ?? 0,
-    landmarks,
-    detected: true,
-  };
+  return enrichLandmarks(
+    {
+      bounds: face.bounds,
+      rollAngle: face.rollAngle ?? 0,
+      landmarks,
+      detected: true,
+    },
+  );
 }
 
 export function trackedFaceFromExpo(
@@ -96,7 +98,7 @@ export function trackedFaceFromExpo(
     if (mapped) landmarks.push({ key, ...mapped });
   }
 
-  return {
+  return enrichLandmarks({
     bounds: {
       x: origin.x * scaleX,
       y: origin.y * scaleY,
@@ -106,5 +108,28 @@ export function trackedFaceFromExpo(
     rollAngle: face.rollAngle ?? 0,
     landmarks,
     detected: true,
-  };
+  });
+}
+
+export function enrichLandmarks(face: TrackedFace): TrackedFace {
+  if (!face.bounds) return face;
+
+  const { x, y, width, height } = face.bounds;
+  const keys = new Set(face.landmarks.map((p) => p.key));
+  const extra: TrackedFace['landmarks'] = [];
+
+  if (!keys.has('forehead')) {
+    extra.push({ key: 'forehead', x: x + width / 2, y: y + height * 0.12 });
+  }
+  if (!keys.has('jawLeft')) {
+    extra.push({ key: 'jawLeft', x: x + width * 0.22, y: y + height * 0.88 });
+  }
+  if (!keys.has('jawRight')) {
+    extra.push({ key: 'jawRight', x: x + width * 0.78, y: y + height * 0.88 });
+  }
+  if (!keys.has('chin')) {
+    extra.push({ key: 'chin', x: x + width / 2, y: y + height * 0.96 });
+  }
+
+  return { ...face, landmarks: [...face.landmarks, ...extra] };
 }

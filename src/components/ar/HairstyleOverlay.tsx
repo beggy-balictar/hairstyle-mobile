@@ -1,19 +1,31 @@
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, StyleSheet, View } from 'react-native';
 import type { HairstylePlacement } from '../../ar/faceTracking';
 import type { TryOnStyle } from '../../ar/tryOnCatalog';
 
 type Props = {
   style: TryOnStyle;
   placement: HairstylePlacement | null;
+  visible: boolean;
 };
 
-export function HairstyleOverlay({ style, placement }: Props) {
+export function HairstyleOverlay({ style, placement, visible }: Props) {
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: visible && placement ? 0.9 : 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  }, [visible, placement, style.id, opacity]);
+
   if (!placement) return null;
 
   const transform = [{ rotate: `${placement.rotationDeg}deg` }];
 
   return (
-    <View
+    <Animated.View
       pointerEvents="none"
       style={[
         styles.wrap,
@@ -23,6 +35,7 @@ export function HairstyleOverlay({ style, placement }: Props) {
           width: placement.width,
           height: placement.height,
           transform,
+          opacity,
         },
       ]}
     >
@@ -32,7 +45,7 @@ export function HairstyleOverlay({ style, placement }: Props) {
         <View style={[styles.hairSideRight, { backgroundColor: style.tintColor }]} />
         <View style={[styles.hairFringe, { backgroundColor: style.tintColor }]} />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

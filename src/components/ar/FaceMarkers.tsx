@@ -9,20 +9,7 @@ type Props = {
 export function FaceMarkers({ face }: Props) {
   if (!face?.detected) return null;
 
-  const points =
-    face.landmarks.length > 0
-      ? face.landmarks
-      : face.bounds
-        ? [
-            { key: 'forehead', x: face.bounds.x + face.bounds.width / 2, y: face.bounds.y + face.bounds.height * 0.12 },
-            { key: 'left-eye', x: face.bounds.x + face.bounds.width * 0.32, y: face.bounds.y + face.bounds.height * 0.38 },
-            { key: 'right-eye', x: face.bounds.x + face.bounds.width * 0.68, y: face.bounds.y + face.bounds.height * 0.38 },
-            { key: 'nose', x: face.bounds.x + face.bounds.width / 2, y: face.bounds.y + face.bounds.height * 0.55 },
-            { key: 'mouth', x: face.bounds.x + face.bounds.width / 2, y: face.bounds.y + face.bounds.height * 0.72 },
-            { key: 'jaw-l', x: face.bounds.x + face.bounds.width * 0.22, y: face.bounds.y + face.bounds.height * 0.88 },
-            { key: 'jaw-r', x: face.bounds.x + face.bounds.width * 0.78, y: face.bounds.y + face.bounds.height * 0.88 },
-          ]
-        : [];
+  const points = face.landmarks.length > 0 ? face.landmarks : [];
 
   return (
     <>

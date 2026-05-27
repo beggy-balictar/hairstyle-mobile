@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.stylehair.mobile",
-      "versionCode": 10,
+      "versionCode": 13,
       "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -46,7 +46,8 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true
+            "usesCleartextTraffic": true,
+            "minSdkVersion": 24
           }
         }
       ],

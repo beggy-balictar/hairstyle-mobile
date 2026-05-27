@@ -32,7 +32,11 @@ module.exports = ({ config }) => {
 
   return {
     ...config,
-    plugins: [...(config.plugins || []), './plugins/withAndroidCleartext'],
+    plugins: [
+      ...(config.plugins || []),
+      './plugins/withAndroidCleartext',
+      './plugins/withMediaPipeModel',
+    ],
     extra: {
       ...(config.extra || {}),
       apiBaseUrl,

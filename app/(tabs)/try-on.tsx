@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FaceDetector from 'expo-face-detector';
@@ -17,51 +18,40 @@ import {
 import { captureRef } from 'react-native-view-shot';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
-import { useCameraDevice, useCameraPermission as useVisionCameraPermission } from 'react-native-vision-camera';
-import {
-  Camera as VisionFaceCamera,
-  type Face,
-} from 'react-native-vision-camera-face-detector';
+import { useCameraPermission as useVisionCameraPermission } from 'react-native-vision-camera';
 import { useRecommendations } from '../../src/context/RecommendationContext';
+import { isMediaPipeArEnabled } from '../../src/ar/arConfig';
+import { normalizeFaceShape, type FaceShapeName } from '../../src/ar/faceShapeAnalysis';
 import {
   placementFromTrackedFace,
   trackedFaceFromExpo,
-  trackedFaceFromVision,
+  type TrackedFace,
 } from '../../src/ar/faceTracking';
-import type { TrackedFace } from '../../src/ar/faceTracking';
 import { buildTryOnStyles } from '../../src/ar/tryOnCatalog';
+import { useLiveFaceScan } from '../../src/ar/useLiveFaceScan';
 import { FaceMarkers } from '../../src/components/ar/FaceMarkers';
+import { FaceShapeBadge } from '../../src/components/ar/FaceShapeBadge';
 import { HairstyleOverlay } from '../../src/components/ar/HairstyleOverlay';
 import { HairstylePicker } from '../../src/components/ar/HairstylePicker';
+import { LegacyTryOnCamera } from '../../src/components/ar/LegacyTryOnCamera';
+import { MediaPipeTryOnCamera } from '../../src/components/ar/MediaPipeTryOnCamera';
 import { colors, radius, spacing } from '../../src/theme';
 
 const USE_EXPO_CAMERA_FALLBACK = Constants.appOwnership === 'expo';
+const USE_MEDIAPIPE = isMediaPipeArEnabled();
 const DETECTION_INTERVAL_MS = 280;
-
-function applyFaceState(
-  face: TrackedFace,
-  setTrackedFace: (f: TrackedFace) => void,
-  setStatusText: (t: string) => void,
-) {
-  setTrackedFace(face);
-  setStatusText(
-    face.detected
-      ? 'Face tracked — tap styles below to try on'
-      : 'No face detected. Center your face in the frame.',
-  );
-}
+const MATCHED_CAMERA_HEIGHT = 640;
 
 export default function TryOnScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const isFocused = useIsFocused();
-  const { items } = useRecommendations();
-  const catalog = useMemo(() => buildTryOnStyles(items), [items]);
-  const [selectedId, setSelectedId] = useState(catalog[0]?.id ?? '');
-  const selectedStyle = catalog.find((s) => s.id === selectedId) ?? catalog[0];
+  const { items, faceShape: savedFaceShape } = useRecommendations();
 
   const [trackedFace, setTrackedFace] = useState<TrackedFace | null>(null);
   const [statusText, setStatusText] = useState('Align your face in the frame');
+  const [selectedId, setSelectedId] = useState('');
   const [saving, setSaving] = useState(false);
   const previewRef = useRef<View>(null);
   const expoCameraRef = useRef<CameraView>(null);
@@ -71,7 +61,6 @@ export default function TryOnScreen() {
   const [expoPermission, requestExpoPermission] = useCameraPermissions();
   const { hasPermission: visionPermission, requestPermission: requestVisionPermission } =
     useVisionCameraPermission();
-  const frontDevice = useCameraDevice('front');
 
   const [appActive, setAppActive] = useState(AppState.currentState === 'active');
   useEffect(() => {
@@ -80,8 +69,24 @@ export default function TryOnScreen() {
   }, []);
   const isActive = isFocused && appActive;
 
-  const previewHeight = Math.max(height - insets.top - 200, 360);
+  const { phase, scanProgress, detectedShape } = useLiveFaceScan({
+    trackedFace,
+    enabled: isActive && Boolean(trackedFace?.detected),
+  });
+
+  const activeShape: FaceShapeName | null = useMemo(() => {
+    if (detectedShape) return detectedShape;
+    return normalizeFaceShape(savedFaceShape);
+  }, [detectedShape, savedFaceShape]);
+
+  const catalog = useMemo(
+    () => buildTryOnStyles(items, activeShape),
+    [items, activeShape],
+  );
+
+  const selectedStyle = catalog.find((s) => s.id === selectedId) ?? catalog[0];
   const placement = useMemo(() => placementFromTrackedFace(trackedFace), [trackedFace]);
+  const showOverlay = Boolean(selectedStyle && trackedFace?.detected);
 
   useEffect(() => {
     if (catalog.length && !catalog.some((s) => s.id === selectedId)) {
@@ -89,26 +94,31 @@ export default function TryOnScreen() {
     }
   }, [catalog, selectedId]);
 
+  const onFaceUpdate = useCallback((face: TrackedFace) => {
+    setTrackedFace(face);
+    setStatusText(
+      face.detected
+        ? 'Face tracked — tap a style below'
+        : 'No face detected. Center your face in the frame.',
+    );
+  }, []);
+
   useEffect(() => {
+    if (USE_MEDIAPIPE) return;
     if (USE_EXPO_CAMERA_FALLBACK) {
       if (!expoPermission?.granted) void requestExpoPermission();
     } else if (!visionPermission) {
       void requestVisionPermission();
     }
   }, [
-    USE_EXPO_CAMERA_FALLBACK,
     expoPermission?.granted,
     visionPermission,
     requestExpoPermission,
     requestVisionPermission,
   ]);
 
-  const handleVisionFaces = useCallback((faces: Face[]) => {
-    const next = trackedFaceFromVision(faces[0]);
-    applyFaceState(next, setTrackedFace, setStatusText);
-  }, []);
-
   useEffect(() => {
+    if (USE_MEDIAPIPE) return;
     if (!USE_EXPO_CAMERA_FALLBACK) return;
     if (!expoPermission?.granted || !expoCameraReady || !isActive) return;
 
@@ -136,11 +146,11 @@ export default function TryOnScreen() {
             result.image?.width ?? photo.width,
             result.image?.height ?? photo.height,
             width,
-            previewHeight,
+            MATCHED_CAMERA_HEIGHT,
           );
-          applyFaceState(next, setTrackedFace, setStatusText);
+          onFaceUpdate(next);
         } catch {
-          // Ignore intermittent detection errors while preview is adjusting.
+          // ignore
         } finally {
           detectingRef.current = false;
         }
@@ -148,9 +158,13 @@ export default function TryOnScreen() {
     }, DETECTION_INTERVAL_MS);
 
     return () => clearInterval(timer);
-  }, [USE_EXPO_CAMERA_FALLBACK, expoPermission?.granted, expoCameraReady, isActive, width, previewHeight]);
+  }, [USE_EXPO_CAMERA_FALLBACK, expoPermission?.granted, expoCameraReady, isActive, width, onFaceUpdate]);
 
   async function ensurePermission() {
+    if (USE_MEDIAPIPE) {
+      if (!visionPermission) await requestVisionPermission();
+      return;
+    }
     if (USE_EXPO_CAMERA_FALLBACK) {
       if (!expoPermission?.granted) await requestExpoPermission();
       return;
@@ -158,7 +172,11 @@ export default function TryOnScreen() {
     if (!visionPermission) await requestVisionPermission();
   }
 
-  const hasCameraPermission = USE_EXPO_CAMERA_FALLBACK ? expoPermission?.granted : visionPermission;
+  const hasCameraPermission = USE_MEDIAPIPE
+    ? visionPermission
+    : USE_EXPO_CAMERA_FALLBACK
+      ? expoPermission?.granted
+      : visionPermission;
 
   async function savePreview() {
     if (!previewRef.current) return;
@@ -183,11 +201,44 @@ export default function TryOnScreen() {
     }
   }
 
+  const cameraOverlays = (
+    <>
+      <FaceMarkers face={trackedFace} />
+      {selectedStyle ? (
+        <HairstyleOverlay style={selectedStyle} placement={placement} visible={showOverlay} />
+      ) : null}
+      <View style={styles.statusBar} pointerEvents="none">
+        <Text style={styles.statusText}>{statusText}</Text>
+        {!trackedFace?.detected ? (
+          <ActivityIndicator size="small" color={colors.accent} style={styles.statusSpinner} />
+        ) : null}
+      </View>
+      <FaceShapeBadge shape={detectedShape ?? activeShape} phase={phase} progress={scanProgress} />
+      <Pressable
+        style={[styles.saveFab, saving && styles.saveFabDisabled]}
+        onPress={() => void savePreview()}
+        disabled={saving || !trackedFace?.detected}
+      >
+        {saving ? (
+          <ActivityIndicator color={colors.onPrimary} size="small" />
+        ) : (
+          <>
+            <Feather name="download" size={16} color={colors.onPrimary} />
+            <Text style={styles.saveFabText}>Save</Text>
+          </>
+        )}
+      </Pressable>
+    </>
+  );
+
   return (
     <View style={styles.page}>
-      <View style={[styles.header, { paddingTop: spacing.sm }]}>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Text style={styles.title}>AR Try-On</Text>
-        <Text style={styles.subtitle}>Live camera · no photo capture required</Text>
+        <Pressable style={styles.dashboardButton} onPress={() => router.replace('/(tabs)/dashboard')}>
+          <Feather name="home" size={16} color={colors.onPrimary} />
+          <Text style={styles.dashboardButtonText}>Dashboard</Text>
+        </Pressable>
       </View>
 
       {!hasCameraPermission ? (
@@ -203,71 +254,39 @@ export default function TryOnScreen() {
           <View
             ref={previewRef}
             collapsable={false}
-            style={[styles.preview, { height: previewHeight }]}
+            style={[styles.preview, { height: MATCHED_CAMERA_HEIGHT }]}
           >
-            {USE_EXPO_CAMERA_FALLBACK ? (
-              <CameraView
-                ref={expoCameraRef}
-                style={StyleSheet.absoluteFill}
-                facing="front"
-                onCameraReady={() => setExpoCameraReady(true)}
-              />
-            ) : frontDevice ? (
-              <VisionFaceCamera
-                style={StyleSheet.absoluteFill}
-                device={frontDevice}
+            {USE_MEDIAPIPE ? (
+              <MediaPipeTryOnCamera
+                height={MATCHED_CAMERA_HEIGHT}
                 isActive={isActive}
-                cameraFacing="front"
-                autoMode
-                windowWidth={width}
-                windowHeight={previewHeight}
-                performanceMode="fast"
-                runLandmarks
-                trackingEnabled
-                onFacesDetected={handleVisionFaces}
-                onError={() =>
-                  setStatusText('Face tracking paused. Adjust lighting or face the camera.')
-                }
-              />
+                onFaceUpdate={onFaceUpdate}
+              >
+                {cameraOverlays}
+              </MediaPipeTryOnCamera>
             ) : (
-              <View style={styles.noDevice}>
-                <Text style={styles.noDeviceText}>Front camera is not available on this device.</Text>
-              </View>
+              <LegacyTryOnCamera
+                height={MATCHED_CAMERA_HEIGHT}
+                width={width}
+                isActive={isActive}
+                expoCameraRef={expoCameraRef}
+                onExpoReady={() => setExpoCameraReady(true)}
+                onFaceUpdate={onFaceUpdate}
+              >
+                {cameraOverlays}
+              </LegacyTryOnCamera>
             )}
-
-            <FaceMarkers face={trackedFace} />
-            {selectedStyle ? <HairstyleOverlay style={selectedStyle} placement={placement} /> : null}
-
-            <View style={styles.statusBar} pointerEvents="none">
-              <Text style={styles.statusText}>{statusText}</Text>
-              {!trackedFace?.detected ? (
-                <ActivityIndicator size="small" color={colors.accent} style={styles.statusSpinner} />
-              ) : null}
-            </View>
-
-            <Pressable
-              style={[styles.saveFab, saving && styles.saveFabDisabled]}
-              onPress={() => void savePreview()}
-              disabled={saving || !trackedFace?.detected}
-            >
-              {saving ? (
-                <ActivityIndicator color={colors.onPrimary} size="small" />
-              ) : (
-                <>
-                  <Feather name="download" size={16} color={colors.onPrimary} />
-                  <Text style={styles.saveFabText}>Save</Text>
-                </>
-              )}
-            </Pressable>
           </View>
 
-          {USE_EXPO_CAMERA_FALLBACK ? (
-            <Text style={styles.hint}>
-              Expo Go uses snapshot detection. Install the APK for smoother ML Kit live tracking.
-            </Text>
+          {USE_MEDIAPIPE ? (
+            <Text style={styles.engineHint}>MediaPipe Face Landmarker · live tracking</Text>
+          ) : USE_EXPO_CAMERA_FALLBACK ? (
+            <Text style={styles.engineHint}>Legacy mode · install APK for MediaPipe tracking</Text>
           ) : null}
 
-          <HairstylePicker styles={catalog} selectedId={selectedId} onSelect={setSelectedId} />
+          <View style={[styles.pickerWrap, { paddingBottom: insets.bottom + spacing.sm }]}>
+            <HairstylePicker styles={catalog} selectedId={selectedId} onSelect={setSelectedId} />
+          </View>
         </View>
       )}
     </View>
@@ -282,16 +301,28 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     color: colors.text,
     fontSize: 24,
     fontWeight: '700',
   },
-  subtitle: {
-    color: colors.textMuted,
-    marginTop: 2,
-    fontSize: 13,
+  dashboardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  dashboardButtonText: {
+    color: colors.onPrimary,
+    fontWeight: '700',
+    fontSize: 12,
   },
   permissionBlock: {
     flex: 1,
@@ -318,9 +349,13 @@ const styles = StyleSheet.create({
   previewBlock: {
     flex: 1,
   },
+  pickerWrap: {
+    paddingTop: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
   preview: {
-    marginHorizontal: spacing.md,
-    borderRadius: radius.lg,
+    marginHorizontal: spacing.sm,
+    borderRadius: radius.md,
     overflow: 'hidden',
     backgroundColor: '#000',
     borderWidth: 1,
@@ -353,7 +388,7 @@ const styles = StyleSheet.create({
   saveFab: {
     position: 'absolute',
     right: spacing.sm,
-    bottom: spacing.sm,
+    top: spacing.sm + 44,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -370,21 +405,10 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 13,
   },
-  hint: {
+  engineHint: {
     marginHorizontal: spacing.md,
     marginTop: spacing.xs,
     color: colors.textMuted,
     fontSize: 11,
-    lineHeight: 16,
-  },
-  noDevice: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  noDeviceText: {
-    color: colors.onPrimary,
-    textAlign: 'center',
   },
 });

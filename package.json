@@ -16,6 +16,7 @@
     "build:aab": "npx eas build -p android --profile production --non-interactive",
     "build:apk:local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-apk-local.ps1",
     "prebuild:android": "npx expo prebuild -p android",
+    "download:mediapipe-model": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/download-mediapipe-model.ps1",
     "dev": "expo start --lan",
     "start:stable": "expo start --lan --clear --port 8082"
   },
@@ -46,6 +47,7 @@
     "react-native-screens": "~4.16.0",
     "react-native-view-shot": "^4.0.3",
     "react-native-vision-camera": "^5.0.9",
+    "react-native-mediapipe": "^0.6.0",
     "react-native-vision-camera-face-detector": "^2.0.0",
     "react-native-web": "^0.21.0",
     "react-native-worklets-core": "^1.6.3"
