@@ -7,7 +7,10 @@ type LoginResult = {
 };
 
 function networkHint(baseUrl: string): string {
-  return `Cannot reach ${baseUrl}. Use the same Wi‑Fi as your PC, set EXPO_PUBLIC_API_BASE_URL (and EXPO_PUBLIC_API_PORT if Next.js is not on :3000), then restart Expo.`;
+  return (
+    `Cannot reach ${baseUrl}. On your PC, run hairstyle-web (npm run dev, port 3000). ` +
+    `Phone and PC must use the same Wi‑Fi. If your PC IP changed, update apiBaseUrl in app.json and rebuild the APK.`
+  );
 }
 
 function looksLikeHtml(body: string): boolean {

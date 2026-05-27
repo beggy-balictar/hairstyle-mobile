@@ -76,6 +76,12 @@ export default function DashboardScreen() {
           onPress={() => router.push('/(tabs)/scan')}
         />
         <ActionCard
+          icon="maximize"
+          title="AR Try-On"
+          subtitle="Live camera — try hairstyles on your face in real time."
+          onPress={() => router.push('/(tabs)/try-on')}
+        />
+        <ActionCard
           icon="image"
           title="Upload Image"
           subtitle="Choose a photo from your gallery."

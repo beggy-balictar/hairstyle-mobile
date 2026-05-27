@@ -91,6 +91,14 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="try-on"
+        options={{
+          title: 'AR Try-On',
+          tabBarLabel: 'Try-On',
+          tabBarIcon: ({ color }) => <Feather name="maximize" color={color} size={TAB_ICON_SIZE} />,
+        }}
+      />
+      <Tabs.Screen
         name="upload"
         options={{
           title: 'Upload',

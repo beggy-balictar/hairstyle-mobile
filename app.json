@@ -3,7 +3,7 @@
     "name": "StyleHair",
     "slug": "hairstyle-mobile-fe",
     "scheme": "stylehair",
-    "version": "1.0.0",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -22,8 +22,8 @@
     },
     "android": {
       "package": "com.stylehair.mobile",
-      "versionCode": 1,
-      "usesCleartextTraffic": true,
+      "versionCode": 10,
+      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#EEF1FF"
@@ -35,14 +35,26 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": ""
+      "apiBaseUrl": "http://192.168.254.136:3000",
+      "router": {},
+      "eas": {
+        "projectId": "438f36bc-db25-4987-ac48-a340c999d860"
+      }
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow StyleHair to access your camera for face scanning."
+          "cameraPermission": "Allow StyleHair to access your camera for face scanning and live AR try-on."
         }
       ],
       [
@@ -51,6 +63,7 @@
           "photosPermission": "Allow StyleHair to access your photos for hairstyle analysis."
         }
       ]
-    ]
+    ],
+    "owner": "beggy-balictar"
   }
 }
