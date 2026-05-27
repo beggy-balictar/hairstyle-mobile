@@ -6,9 +6,15 @@ type Props = {
   styles: TryOnStyle[];
   selectedId: string;
   onSelect: (id: string) => void;
+  highlightRecommended?: boolean;
 };
 
-export function HairstylePicker({ styles: catalog, selectedId, onSelect }: Props) {
+export function HairstylePicker({
+  styles: catalog,
+  selectedId,
+  onSelect,
+  highlightRecommended = false,
+}: Props) {
   return (
     <View style={styles.panel}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
@@ -18,11 +24,15 @@ export function HairstylePicker({ styles: catalog, selectedId, onSelect }: Props
             <Pressable
               key={item.id}
               onPress={() => onSelect(item.id)}
-              style={[styles.chip, active && styles.chipActive, item.recommended && styles.chipRecommended]}
+              style={[
+                styles.chip,
+                active && styles.chipActive,
+                highlightRecommended && item.recommended && styles.chipRecommended,
+              ]}
             >
-              {item.recommended ? (
+              {highlightRecommended && item.recommended ? (
                 <View style={styles.recBadge}>
-                  <Text style={styles.recBadgeText}>For you</Text>
+                  <Text style={styles.recBadgeText}>Best match</Text>
                 </View>
               ) : null}
               {item.imageUri ? (
@@ -59,26 +69,27 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'transparent',
     backgroundColor: 'rgba(255,255,255,0.12)',
+    overflow: 'visible',
   },
   chipActive: {
     borderColor: colors.accent,
     backgroundColor: 'rgba(246,152,62,0.22)',
   },
   chipRecommended: {
-    borderColor: 'rgba(246,152,62,0.45)',
+    borderColor: colors.success,
   },
   recBadge: {
     position: 'absolute',
     top: 2,
     right: 2,
     zIndex: 2,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.success,
     borderRadius: radius.pill,
     paddingHorizontal: 5,
     paddingVertical: 2,
   },
   recBadgeText: {
-    color: colors.onAccent,
+    color: colors.onPrimary,
     fontSize: 8,
     fontWeight: '800',
   },

@@ -1,64 +1,45 @@
 import { StyleSheet, Text, View } from 'react-native';
 import type { FaceShapeName } from '../../ar/faceShapeAnalysis';
+import type { LiveScanPhase } from '../../hooks/useLiveFaceAnalysis';
 import { colors, radius, spacing } from '../../theme';
 
 type Props = {
   shape: FaceShapeName | null;
-  phase: 'aligning' | 'scanning' | 'ready' | 'idle';
-  progress?: number;
+  phase: LiveScanPhase;
+  scanning?: boolean;
 };
 
-export function FaceShapeBadge({ shape, phase, progress = 0 }: Props) {
-  if (phase === 'idle') return null;
+export function FaceShapeBadge({ shape, phase, scanning }: Props) {
+  if (phase === 'searching' || phase === 'aligning') return null;
 
   const label =
-    phase === 'aligning'
-      ? 'Center your face in the frame'
-      : phase === 'scanning'
-        ? `Scanning face shape… ${progress}%`
-        : shape
-          ? `Face shape: ${shape}`
-          : 'Analyzing…';
+    scanning || !shape
+      ? 'Analyzing face shape…'
+      : `Face shape: ${shape}`;
 
   return (
-    <View style={styles.wrap} pointerEvents="none">
+    <View style={styles.badge} pointerEvents="none">
       <Text style={styles.text}>{label}</Text>
-      {phase === 'scanning' ? (
-        <View style={styles.track}>
-          <View style={[styles.fill, { width: `${progress}%` }]} />
-        </View>
-      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {
+  badge: {
     position: 'absolute',
     left: spacing.sm,
     right: spacing.sm,
     bottom: spacing.sm,
-    backgroundColor: colors.overlay,
-    borderRadius: radius.md,
-    paddingVertical: 8,
-    paddingHorizontal: spacing.md,
-    gap: 6,
+    alignItems: 'center',
   },
   text: {
     color: colors.onPrimary,
     fontWeight: '700',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  track: {
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.25)',
+    fontSize: 13,
+    backgroundColor: colors.overlay,
+    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
     overflow: 'hidden',
-  },
-  fill: {
-    height: '100%',
-    backgroundColor: colors.accent,
-    borderRadius: 999,
   },
 });

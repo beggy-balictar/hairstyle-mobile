@@ -1,65 +1,77 @@
+import type { TrackedFace } from './faceTracking';
+
 export type FaceShapeName = 'Oval' | 'Round' | 'Square' | 'Heart' | 'Diamond';
 
 const SHAPES: FaceShapeName[] = ['Oval', 'Round', 'Square', 'Heart', 'Diamond'];
 
-export function normalizeFaceShape(tag?: string | null): FaceShapeName | null {
-  if (!tag?.trim()) return null;
-  const key = tag.trim().toLowerCase();
-  return SHAPES.find((s) => s.toLowerCase() === key) ?? null;
+export function normalizeFaceShape(value?: string | null): FaceShapeName | null {
+  if (!value) return null;
+  const t = value.trim().toLowerCase();
+  const hit = SHAPES.find((s) => s.toLowerCase() === t);
+  return hit ?? null;
 }
 
-export function faceShapeMatchesTag(
-  activeShape: FaceShapeName | null,
-  tag?: string | null,
-): boolean {
-  if (!activeShape || !tag) return false;
-  return normalizeFaceShape(tag) === activeShape;
+export function faceShapeMatchesTag(active: FaceShapeName | null, tag?: string | null): boolean {
+  if (!active || !tag) return false;
+  return normalizeFaceShape(tag) === active;
 }
 
-type Point = { x: number; y: number };
+function landmarkMap(face: TrackedFace): Map<string, { x: number; y: number }> {
+  return new Map(face.landmarks.map((p) => [p.key, p]));
+}
 
-function dist(a: Point, b: Point): number {
+function dist(
+  a: { x: number; y: number } | undefined,
+  b: { x: number; y: number } | undefined,
+): number {
+  if (!a || !b) return 0;
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
 /**
- * Heuristic face-shape classifier from 2D landmarks (MediaPipe-style layout).
- * Ratios are approximate; tuned for front-camera try-on.
+ * Heuristic face-shape classifier from 2D landmarks (ML Kit / MediaPipe-style points).
+ * Not clinical — tuned for stable AR catalog highlighting.
  */
-export function inferFaceShapeFromLandmarks(landmarks: Point[]): FaceShapeName | null {
-  if (landmarks.length < 10) return null;
+export function inferFaceShapeFromFace(face: TrackedFace | null): FaceShapeName | null {
+  if (!face?.detected || !face.bounds) return null;
 
-  const ys = landmarks.map((p) => p.y);
-  const xs = landmarks.map((p) => p.x);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const height = maxY - minY;
-  const width = maxX - minX;
-  if (height < 8 || width < 8) return null;
+  const lm = landmarkMap(face);
+  const forehead = lm.get('forehead');
+  const chin = lm.get('chin');
+  const leftEye = lm.get('leftEye');
+  const rightEye = lm.get('rightEye');
+  const leftCheek = lm.get('leftCheek');
+  const rightCheek = lm.get('rightCheek');
+  const jawLeft = lm.get('jawLeft');
+  const jawRight = lm.get('jawRight');
 
-  const aspect = width / height;
-  const centerX = (minX + maxX) / 2;
-  const topBand = landmarks.filter((p) => p.y < minY + height * 0.35);
-  const midBand = landmarks.filter(
-    (p) => p.y >= minY + height * 0.35 && p.y <= minY + height * 0.7,
-  );
-  const bottomBand = landmarks.filter((p) => p.y > minY + height * 0.7);
+  const faceHeight = dist(forehead, chin) || face.bounds.height;
+  const jawWidth = dist(jawLeft, jawRight) || face.bounds.width;
+  const cheekWidth = dist(leftCheek, rightCheek) || jawWidth;
+  const eyeSpan = dist(leftEye, rightEye) || jawWidth * 0.55;
+  const foreheadWidth = eyeSpan * 1.15;
 
-  const bandWidth = (pts: Point[]) => {
-    if (pts.length < 2) return width;
-    return Math.max(...pts.map((p) => p.x)) - Math.min(...pts.map((p) => p.x));
-  };
+  if (faceHeight < 40 || jawWidth < 40) return null;
 
-  const foreheadW = bandWidth(topBand);
-  const cheekW = bandWidth(midBand);
-  const jawW = bandWidth(bottomBand);
+  const ratio = faceHeight / jawWidth;
+  const cheekToJaw = cheekWidth / jawWidth;
+  const foreheadToJaw = foreheadWidth / jawWidth;
 
-  if (cheekW > foreheadW * 1.12 && cheekW > jawW * 1.08) return 'Diamond';
-  if (foreheadW > jawW * 1.1 && aspect >= 0.88) return 'Heart';
-  if (aspect >= 0.92 && aspect <= 1.05) return 'Round';
-  if (aspect > 1.02 && Math.abs(foreheadW - jawW) / cheekW < 0.12) return 'Square';
-  if (aspect >= 0.78 && aspect <= 0.95) return 'Oval';
+  if (cheekToJaw > 1.08 && foreheadToJaw < 0.92) return 'Diamond';
+  if (foreheadToJaw > 1.05 && jawWidth < cheekWidth * 0.95) return 'Heart';
+  if (ratio < 1.15 && foreheadToJaw > 0.95 && cheekToJaw < 1.05) return 'Round';
+  if (ratio < 1.28 && Math.abs(foreheadToJaw - 1) < 0.08 && cheekToJaw < 1.04) return 'Square';
   return 'Oval';
+}
+
+/** Smooth shape changes so the badge does not flicker frame-to-frame. */
+export function smoothFaceShape(
+  previous: FaceShapeName | null,
+  next: FaceShapeName | null,
+  sameCount: number,
+): { shape: FaceShapeName | null; stableCount: number } {
+  if (!next) return { shape: previous, stableCount: 0 };
+  if (next === previous) return { shape: previous, stableCount: sameCount + 1 };
+  if (sameCount >= 2) return { shape: next, stableCount: 1 };
+  return { shape: previous, stableCount: sameCount + 1 };
 }

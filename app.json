@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.stylehair.mobile",
-      "versionCode": 16,
+      "versionCode": 14,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE"
@@ -38,7 +38,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.1.7:3000",
+      "apiBaseUrl": "http://192.168.254.136:3000",
       "router": {},
       "eas": {
         "projectId": "ecd0a7ef-eee9-4670-ba0d-281a64ee3868"
@@ -49,8 +49,7 @@
         "expo-build-properties",
         {
           "android": {
-            "usesCleartextTraffic": true,
-            "minSdkVersion": 26
+            "usesCleartextTraffic": true
           }
         }
       ],

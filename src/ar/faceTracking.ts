@@ -1,17 +1,5 @@
 import type { FaceFeature } from 'expo-face-detector';
-// Face type from vision-camera-face-detector (legacy path only; inlined to avoid native install issues)
-type Face = {
-  bounds?: { x: number; y: number; width: number; height: number } | null;
-  rollAngle?: number;
-  landmarks?: {
-    LEFT_EYE?: { x: number; y: number };
-    RIGHT_EYE?: { x: number; y: number };
-    NOSE_BASE?: { x: number; y: number };
-    MOUTH_BOTTOM?: { x: number; y: number };
-    LEFT_CHEEK?: { x: number; y: number };
-    RIGHT_CHEEK?: { x: number; y: number };
-  };
-};
+import type { Face } from 'react-native-vision-camera-face-detector';
 
 export type TrackedFace = {
   bounds: { x: number; y: number; width: number; height: number } | null;
@@ -68,7 +56,7 @@ export function trackedFaceFromVision(face: Face | undefined): TrackedFace {
 
   return enrichLandmarks(
     {
-      bounds: face.bounds ?? null,
+      bounds: face.bounds,
       rollAngle: face.rollAngle ?? 0,
       landmarks,
       detected: true,
@@ -123,7 +111,7 @@ export function trackedFaceFromExpo(
   });
 }
 
-export function enrichLandmarks(face: TrackedFace): TrackedFace {
+function enrichLandmarks(face: TrackedFace): TrackedFace {
   if (!face.bounds) return face;
 
   const { x, y, width, height } = face.bounds;
