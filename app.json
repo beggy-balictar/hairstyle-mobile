@@ -22,11 +22,8 @@
     },
     "android": {
       "package": "com.stylehair.mobile",
-      "versionCode": 14,
-      "permissions": [
-        "INTERNET",
-        "ACCESS_NETWORK_STATE"
-      ],
+      "versionCode": 16,
+      "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#EEF1FF"
@@ -38,7 +35,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "http://192.168.254.136:3000",
+      "apiBaseUrl": "http://192.168.1.7:3000",
       "router": {},
       "eas": {
         "projectId": "ecd0a7ef-eee9-4670-ba0d-281a64ee3868"

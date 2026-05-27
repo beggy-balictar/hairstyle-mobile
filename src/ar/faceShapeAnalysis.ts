@@ -1,77 +1,113 @@
-import type { TrackedFace } from './faceTracking';
+/**
+ * Face-shape analysis utilities.
+ *
+ * Provides:
+ *  - FaceShapeName canonical type
+ *  - Live face-shape estimation from MediaPipe landmark ratios
+ *  - Normalise helpers used by catalog / Try-On UI
+ */
 
 export type FaceShapeName = 'Oval' | 'Round' | 'Square' | 'Heart' | 'Diamond';
 
-const SHAPES: FaceShapeName[] = ['Oval', 'Round', 'Square', 'Heart', 'Diamond'];
+const CANONICAL_SHAPES: FaceShapeName[] = ['Oval', 'Round', 'Square', 'Heart', 'Diamond'];
 
-export function normalizeFaceShape(value?: string | null): FaceShapeName | null {
-  if (!value) return null;
-  const t = value.trim().toLowerCase();
-  const hit = SHAPES.find((s) => s.toLowerCase() === t);
-  return hit ?? null;
+export function normalizeFaceShape(raw?: string | null): FaceShapeName | null {
+  if (!raw) return null;
+  const lower = raw.trim().toLowerCase();
+  const match = CANONICAL_SHAPES.find((s) => s.toLowerCase() === lower);
+  return match ?? null;
 }
 
-export function faceShapeMatchesTag(active: FaceShapeName | null, tag?: string | null): boolean {
-  if (!active || !tag) return false;
-  return normalizeFaceShape(tag) === active;
-}
-
-function landmarkMap(face: TrackedFace): Map<string, { x: number; y: number }> {
-  return new Map(face.landmarks.map((p) => [p.key, p]));
-}
-
-function dist(
-  a: { x: number; y: number } | undefined,
-  b: { x: number; y: number } | undefined,
-): number {
-  if (!a || !b) return 0;
-  return Math.hypot(a.x - b.x, a.y - b.y);
+export function faceShapeMatchesTag(
+  activeShape: FaceShapeName | null,
+  tag?: string | null,
+): boolean {
+  if (!activeShape || !tag) return false;
+  return tag.trim().toLowerCase() === activeShape.toLowerCase();
 }
 
 /**
- * Heuristic face-shape classifier from 2D landmarks (ML Kit / MediaPipe-style points).
- * Not clinical — tuned for stable AR catalog highlighting.
+ * Estimate face shape from key landmark distances.
+ *
+ * Landmark indices used (MediaPipe 468-point mesh):
+ *   - Forehead top: 10
+ *   - Chin bottom:  152
+ *   - Left cheek:   234
+ *   - Right cheek:  454
+ *   - Left jaw:     172
+ *   - Right jaw:    397
+ *   - Left temple:  127
+ *   - Right temple: 356
+ *
+ * If a simplified set (expo-face-detector or VisionCamera basic) is passed,
+ * we fall back to a bounding-box heuristic.
  */
-export function inferFaceShapeFromFace(face: TrackedFace | null): FaceShapeName | null {
-  if (!face?.detected || !face.bounds) return null;
+export type LandmarkPoint = { x: number; y: number };
 
-  const lm = landmarkMap(face);
-  const forehead = lm.get('forehead');
-  const chin = lm.get('chin');
-  const leftEye = lm.get('leftEye');
-  const rightEye = lm.get('rightEye');
-  const leftCheek = lm.get('leftCheek');
-  const rightCheek = lm.get('rightCheek');
-  const jawLeft = lm.get('jawLeft');
-  const jawRight = lm.get('jawRight');
+export function estimateFaceShapeFromLandmarks(
+  landmarks: Record<string, LandmarkPoint>,
+  bounds?: { width: number; height: number } | null,
+): FaceShapeName {
+  // Full MediaPipe path - prefer landmark ratios
+  const foreheadTop = landmarks['foreheadTop'];
+  const chin = landmarks['chin'];
+  const leftCheek = landmarks['leftCheek'];
+  const rightCheek = landmarks['rightCheek'];
+  const leftJaw = landmarks['jawLeft'];
+  const rightJaw = landmarks['jawRight'];
+  const leftTemple = landmarks['leftTemple'];
+  const rightTemple = landmarks['rightTemple'];
 
-  const faceHeight = dist(forehead, chin) || face.bounds.height;
-  const jawWidth = dist(jawLeft, jawRight) || face.bounds.width;
-  const cheekWidth = dist(leftCheek, rightCheek) || jawWidth;
-  const eyeSpan = dist(leftEye, rightEye) || jawWidth * 0.55;
-  const foreheadWidth = eyeSpan * 1.15;
+  if (foreheadTop && chin && leftCheek && rightCheek && leftJaw && rightJaw) {
+    const faceHeight = Math.abs(chin.y - foreheadTop.y);
+    const cheekWidth = Math.abs(rightCheek.x - leftCheek.x);
+    const jawWidth = Math.abs(rightJaw.x - leftJaw.x);
+    const foreheadWidth = leftTemple && rightTemple
+      ? Math.abs(rightTemple.x - leftTemple.x)
+      : cheekWidth * 0.92;
 
-  if (faceHeight < 40 || jawWidth < 40) return null;
+    if (faceHeight <= 0 || cheekWidth <= 0) {
+      return estimateFaceShapeFromBounds(bounds);
+    }
 
-  const ratio = faceHeight / jawWidth;
-  const cheekToJaw = cheekWidth / jawWidth;
-  const foreheadToJaw = foreheadWidth / jawWidth;
+    const heightToWidthRatio = faceHeight / cheekWidth;
+    const jawToForeheadRatio = jawWidth / foreheadWidth;
+    const jawToCheekRatio = jawWidth / cheekWidth;
 
-  if (cheekToJaw > 1.08 && foreheadToJaw < 0.92) return 'Diamond';
-  if (foreheadToJaw > 1.05 && jawWidth < cheekWidth * 0.95) return 'Heart';
-  if (ratio < 1.15 && foreheadToJaw > 0.95 && cheekToJaw < 1.05) return 'Round';
-  if (ratio < 1.28 && Math.abs(foreheadToJaw - 1) < 0.08 && cheekToJaw < 1.04) return 'Square';
-  return 'Oval';
+    // Oval: slightly longer than wide, balanced widths
+    if (heightToWidthRatio > 1.25 && jawToForeheadRatio > 0.85 && jawToCheekRatio > 0.82) {
+      return 'Oval';
+    }
+    // Round: close to 1:1, soft jaw
+    if (heightToWidthRatio < 1.15 && jawToCheekRatio > 0.85) {
+      return 'Round';
+    }
+    // Square: wide jaw close to cheek and forehead width
+    if (jawToCheekRatio > 0.9 && jawToForeheadRatio > 0.9) {
+      return 'Square';
+    }
+    // Heart: wide forehead, narrow jaw
+    if (foreheadWidth > jawWidth * 1.15 && jawToCheekRatio < 0.75) {
+      return 'Heart';
+    }
+    // Diamond: narrow forehead + narrow jaw, wide cheeks
+    if (cheekWidth > foreheadWidth * 1.1 && cheekWidth > jawWidth * 1.1) {
+      return 'Diamond';
+    }
+    // Default Oval for intermediate results
+    return 'Oval';
+  }
+
+  return estimateFaceShapeFromBounds(bounds);
 }
 
-/** Smooth shape changes so the badge does not flicker frame-to-frame. */
-export function smoothFaceShape(
-  previous: FaceShapeName | null,
-  next: FaceShapeName | null,
-  sameCount: number,
-): { shape: FaceShapeName | null; stableCount: number } {
-  if (!next) return { shape: previous, stableCount: 0 };
-  if (next === previous) return { shape: previous, stableCount: sameCount + 1 };
-  if (sameCount >= 2) return { shape: next, stableCount: 1 };
-  return { shape: previous, stableCount: sameCount + 1 };
+function estimateFaceShapeFromBounds(
+  bounds?: { width: number; height: number } | null,
+): FaceShapeName {
+  if (!bounds || bounds.width <= 0) return 'Oval';
+  const ratio = bounds.height / bounds.width;
+  if (ratio > 1.35) return 'Oval';
+  if (ratio < 1.05) return 'Round';
+  if (ratio < 1.2) return 'Square';
+  return 'Oval';
 }

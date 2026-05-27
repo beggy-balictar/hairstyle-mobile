@@ -1,5 +1,6 @@
 import type { RecommendationEntry } from '../context/RecommendationContext';
 import { faceShapeMatchesTag, normalizeFaceShape, type FaceShapeName } from './faceShapeAnalysis';
+import { resolveAsset } from './assets/assetCatalog';
 
 export type TryOnStyle = {
   id: string;
@@ -10,6 +11,10 @@ export type TryOnStyle = {
   suitedShapes?: FaceShapeName[];
   /** True when matched to current scan / live-detected shape. */
   recommended?: boolean;
+  /** Optional 3D model GLB URI (populated from assetCatalog when available). */
+  model3dUrl?: string | null;
+  /** Anchor profile from asset catalog. */
+  anchorProfile?: string | null;
 };
 
 const DEFAULT_STYLES: TryOnStyle[] = [
@@ -76,5 +81,16 @@ export function buildTryOnStyles(
     merged = [...DEFAULT_STYLES];
   }
 
-  return markRecommended(merged, shape);
+  const withAssets = merged.map((s) => {
+    const asset = resolveAsset(s.id);
+    if (!asset) return s;
+    return {
+      ...s,
+      imageUri: s.imageUri ?? asset.previewImage ?? null,
+      model3dUrl: asset.model3dUrl ?? null,
+      anchorProfile: asset.anchorProfile ?? null,
+    };
+  });
+
+  return markRecommended(withAssets, shape);
 }
