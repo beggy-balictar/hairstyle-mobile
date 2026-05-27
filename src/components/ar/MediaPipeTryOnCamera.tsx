@@ -19,7 +19,7 @@ type Props = {
 
 export function MediaPipeTryOnCamera({ height, isActive, onFaceUpdate, children }: Props) {
   const onResults = useCallback(
-    (bundle: Parameters<Parameters<typeof useFaceLandmarkDetection>[0]>[0], viewSize: Parameters<Parameters<typeof useFaceLandmarkDetection>[0]>[1], mirrored: boolean) => {
+    (bundle: any, viewSize: any, mirrored: boolean) => {
       const frame = { width: bundle.inputImageWidth, height: bundle.inputImageHeight };
       const landmarks = bundle.results[0]?.faceLandmarks[0] ?? [];
       onFaceUpdate(trackedFaceFromMediaPipe(landmarks, frame, viewSize, mirrored));
@@ -43,7 +43,7 @@ export function MediaPipeTryOnCamera({ height, isActive, onFaceUpdate, children 
   );
 
   const onLayout = useCallback(
-    (e: Parameters<typeof solution.cameraViewLayoutChangeHandler>[0]) => {
+    (e: any) => {
       solution.cameraViewLayoutChangeHandler(e);
     },
     [solution],

@@ -3,15 +3,16 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Use prebuilt CJS so Metro does not compile mediapipe src (worklets/babel plugin chain).
-const mediapipeRoot = path.join(__dirname, 'node_modules', 'react-native-mediapipe');
+// When react-native-mediapipe is not installed, resolve to a JS stub so EAS can bundle.
+const mediapipeStub = path.resolve(__dirname, 'src/ar/mediapipe-stub.ts');
+const mediapipePkg = path.join(__dirname, 'node_modules', 'react-native-mediapipe', 'lib/commonjs/index.js');
+const fs = require('fs');
+const mediapipeTarget = fs.existsSync(mediapipePkg) ? mediapipePkg : mediapipeStub;
+
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (moduleName === 'react-native-mediapipe') {
-    return {
-      type: 'sourceFile',
-      filePath: path.join(mediapipeRoot, 'lib/commonjs/index.js'),
-    };
+    return { type: 'sourceFile', filePath: mediapipeTarget };
   }
   if (defaultResolveRequest) {
     return defaultResolveRequest(context, moduleName, platform);
@@ -19,8 +20,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
-// Windows workaround: Metro may crash on transient native build folders
-// generated under node_modules by react-native-worklets-core.
 config.resolver = config.resolver || {};
 const extraBlockList = [
   /node_modules[\\/]+\.react-native-worklets-core-[^\\/]+[\\/]+android[\\/]+\.cxx[\\/].*/,

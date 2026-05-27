@@ -35,8 +35,6 @@ module.exports = ({ config }) => {
     plugins: [
       ...(config.plugins || []),
       './plugins/withAndroidCleartext',
-      './plugins/withMediaPipeModel',
-      './plugins/withMediaPipeGradleFix',
     ],
     extra: {
       ...(config.extra || {}),
