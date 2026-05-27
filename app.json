@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.stylehair.mobile",
-      "versionCode": 13,
+      "versionCode": 16,
       "permissions": ["INTERNET", "ACCESS_NETWORK_STATE"],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -37,9 +37,7 @@
     "extra": {
       "apiBaseUrl": "http://192.168.254.136:3000",
       "router": {},
-      "eas": {
-        "projectId": "438f36bc-db25-4987-ac48-a340c999d860"
-      }
+      "eas": {}
     },
     "plugins": [
       [
@@ -47,7 +45,7 @@
         {
           "android": {
             "usesCleartextTraffic": true,
-            "minSdkVersion": 24
+            "minSdkVersion": 26
           }
         }
       ],
@@ -65,6 +63,6 @@
         }
       ]
     ],
-    "owner": "beggy-balictar"
+    "owner": "begzxs"
   }
 }
